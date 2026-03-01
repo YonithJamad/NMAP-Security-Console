@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CVE Finder | Live Scanner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #000000;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+
+<body class="text-slate-200 min-h-screen p-6 font-sans">
+    <div class="max-w-5xl mx-auto">
+        <header class="flex justify-between items-center mb-10 border-b border-white/10 pb-8">
+            <div>
+                <h1 class="text-4xl font-extrabold text-white tracking-tight">
+                    <i class="fas fa-triangle-exclamation text-cyan-400 mr-3"></i>CVE Finder
+                </h1>
+                <p class="text-slate-400 mt-2 text-sm uppercase tracking-widest">NMAP Vulnerability Scanner</p>
+            </div>
+            <div id="scanStatus"
+                class="hidden flex items-center text-xs font-bold bg-cyan-500/10 text-cyan-400 px-5 py-2 rounded-full border border-cyan-500/30 animate-pulse">
+                <svg class="animate-spin h-3 w-3 mr-3 border-2 border-cyan-400 border-t-transparent rounded-full"
+                    viewBox="0 0 24 24"></svg>
+                SYSTEM SCAN IN PROGRESS...
+            </div>
+        </header>
+
+        <div class="glass-card p-8 rounded-2xl shadow-2xl mb-10">
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-3 px-1">Target Host (IP or Domain)</label>
+            <div class="flex flex-col md:flex-row gap-4">
+                <input id="targetUrl" type="text" placeholder="e.g. 192.168.1.1 or example.com"
+                    class="flex-1 bg-white/5 border border-white/10 p-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white placeholder-slate-600 transition-all">
+                <button onclick="performActualScan()"
+                    class="bg-white hover:bg-cyan-400 text-black px-10 py-4 rounded-xl font-black uppercase tracking-tighter transition-all hover:scale-105">
+                    Start Live Scan
+                </button>
+            </div>
+        </div>
+
+        <div class="glass-card rounded-2xl shadow-2xl overflow-hidden">
+            <div class="p-6 border-b border-white/5 bg-white/5 flex justify-between items-center">
+                <h2 class="font-bold text-lg text-white">Detected Vulnerabilities</h2>
+                <span id="scanMode" class="text-xs bg-white/10 px-3 py-1 rounded text-slate-400">CVE & CVSS</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-white/5 text-slate-500 text-[10px] uppercase font-black tracking-widest">
+                        <tr>
+                            <th class="px-8 py-5">CVE Reference</th>
+                            <th class="px-8 py-5">Severity</th>
+                            <th class="px-8 py-5">Description</th>
+                            <th class="px-8 py-5">CVSS v3</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cveList" class="divide-y divide-white/5">
+                        <tr>
+                            <td colspan="4" class="px-8 py-16 text-center text-slate-600 italic">
+                                Awaiting target input for live Nmap analysis...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function performActualScan() {
+            const host = document.getElementById('targetUrl').value;
+            if (!host) return alert("Please enter a target host");
+
+            const status = document.getElementById('scanStatus');
+            const list = document.getElementById('cveList');
+            const modeLabel = document.getElementById('scanMode');
+
+            status.classList.remove('hidden');
+            modeLabel.innerText = "Scanning...";
+            list.innerHTML = `<tr><td colspan="4" class="px-8 py-20 text-center"><span class="text-cyan-400 font-mono animate-pulse text-lg">RUNNING NMAP SCAN FOR: ${host.toUpperCase()}</span></td></tr>`;
+
+            try {
+                const response = await fetch(`http://127.0.0.1:8000/scan/cve?host=${encodeURIComponent(host)}`);
+                const data = await response.json();
+
+                status.classList.add('hidden');
+                modeLabel.innerText = "Scan Complete";
+
+                if (data.length === 0) {
+                    list.innerHTML = `<tr><td colspan="4" class="px-8 py-16 text-center text-slate-500 italic">No CVEs matching ${host} were found.</td></tr>`;
+                } else {
+                    renderCVEs(data);
+                }
+            } catch (error) {
+                console.error("Scan Error:", error);
+                status.classList.add('hidden');
+                modeLabel.innerText = "Error";
+                list.innerHTML = `<tr><td colspan="4" class="px-8 py-16 text-center text-red-400 font-bold">Failed to connect to backend server. Ensure main.py is running on port 8000.</td></tr>`;
+            }
+        }
+
+        function renderCVEs(data) {
+            const list = document.getElementById('cveList');
+            list.innerHTML = '';
+
+            data.forEach(cve => {
+                const color = cve.score >= 9 ? 'text-rose-400 border-rose-400/50 bg-rose-400/10' :
+                    cve.score >= 7 ? 'text-amber-400 border-amber-400/50 bg-amber-400/10' :
+                        'text-emerald-400 border-emerald-400/50 bg-emerald-400/10';
+
+                list.innerHTML += `
+                    <tr class="hover:bg-white/[0.02] transition-colors group">
+                        <td class="px-8 py-6 font-mono text-cyan-300 font-bold tracking-tight">${cve.id}</td>
+                        <td class="px-8 py-6">
+                            <span class="px-3 py-1 rounded-md border text-[10px] font-black tracking-tighter ${color}">${cve.level}</span>
+                        </td>
+                        <td class="px-8 py-6 text-sm text-slate-400 leading-relaxed max-w-md">${cve.desc}</td>
+                        <td class="px-8 py-6 font-black text-xl text-white group-hover:text-cyan-400 transition-colors">${cve.score}</td>
+                    </tr>
+                `;
+            });
+        }
+    </script>
+</body>
+
+</html>
