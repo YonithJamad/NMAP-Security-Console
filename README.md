@@ -39,11 +39,25 @@ git clone https://github.com/YonithJamad/NMAP-Security-Console
 cd NMAP_Project
 ```
 
-### 3. Install Python Dependencies
-Make sure you have Python 3.8+ installed. It is recommended to use a virtual environment. Install the required packages via pip:
+### 3. Create a Virtual Environment and Install Dependencies
+Make sure you have Python 3.8+ installed. It is highly recommended to use a virtual environment to manage dependencies.
+
+**For Windows:**
+```bash
+python -m venv venv
+.\venv\Scripts\activate
+```
+
+**For Linux / macOS:**
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+Once activated, install the required packages via pip:
 
 ```bash
-pip install fastapi uvicorn python-nmap nvdlib pydantic
+pip install -r requirements.txt
 ```
 
 ### 4. Run the Application
